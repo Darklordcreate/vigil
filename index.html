@@ -477,30 +477,52 @@
     font-size: 12px;
     margin-top: 50px;
   }
+
+  .signout-link {
+    background: none;
+    border: none;
+    color: var(--text-faint);
+    font-size: 12.5px;
+    cursor: pointer;
+    padding: 4px 0;
+  }
+
+  .signout-link:hover { color: var(--text-muted); }
+
+  .signin-wrap {
+    max-width: 420px;
+    margin: 18vh auto 0;
+    text-align: center;
+    animation: rise 0.35s ease;
+  }
 </style>
 </head>
 <body>
 <div id="app"></div>
 
-<script>
-(function(){
+<script type="module">
+import { createAuthClient } from 'https://esm.sh/@neondatabase/auth';
 
-  // ---------- storage helpers ----------
-  async function loadData(key, fallback){
-    try {
-      const res = await window.storage.get(key, false);
-      return res ? JSON.parse(res.value) : fallback;
-    } catch(e){
-      return fallback;
-    }
+const AUTH_URL = 'https://ep-divine-bonus-ay7049xk.neonauth.c-5.us-east-2.aws.neon.tech/neondb/auth';
+const DATA_API_URL = 'https://ep-divine-bonus-ay7049xk.apirest.c-5.us-east-2.aws.neon.tech/neondb/rest/v1';
+const auth = createAuthClient(AUTH_URL);
+
+async function authedFetch(path, options = {}){
+  const { data: tokenData, error: tokenError } = await auth.token();
+  if (tokenError || !tokenData) throw new Error('not signed in');
+  const jwt = tokenData.token || tokenData;
+  const headers = Object.assign({
+    'Authorization': 'Bearer ' + jwt,
+    'Content-Type': 'application/json'
+  }, options.headers || {});
+  const res = await fetch(DATA_API_URL + path, Object.assign({}, options, { headers }));
+  if (!res.ok) {
+    const body = await res.text().catch(()=> '');
+    throw new Error('Data API ' + res.status + ': ' + body);
   }
-  async function saveData(key, value){
-    try {
-      await window.storage.set(key, JSON.stringify(value), false);
-    } catch(e){
-      console.error('storage failed', e);
-    }
-  }
+  return res.status === 204 ? null : res.json();
+}
+
 
   function todayStr(){
     return new Date().toISOString().slice(0,10);
@@ -544,6 +566,9 @@
 
   let state = {
     tab: 'overview',
+    session: null,
+    authChecked: false,
+    authBusy: false,
     med: DEFAULT_MED,
     fast: DEFAULT_FAST,
     medTimer: { durationMin: 10, remaining: 10*60, running: false, intervalId: null },
@@ -552,25 +577,74 @@
     fastGoalType: null
   };
 
-  async function init(){
-    state.med = await loadData('meditation-data', DEFAULT_MED);
-    state.fast = await loadData('fasting-data', DEFAULT_FAST);
-    state.medTimer.remaining = state.medTimer.durationMin*60;
+  async function signInGoogle(){
+    state.authBusy = true; render();
+    await auth.signIn.social({ provider: 'google', callbackURL: window.location.href });
+  }
+
+  async function signOut(){
+    await auth.signOut();
+    state.session = null;
+    state.med = DEFAULT_MED;
+    state.fast = DEFAULT_FAST;
+    clearInterval(fastClockInterval);
     render();
+  }
+
+  async function loadStreakRow(){
+    const rows = await authedFetch('/streaks?select=*&limit=1');
+    if (rows && rows.length) return rows[0];
+    return { user_id: state.session.user.id, med_streak: 0, med_last_date: null, fast_streak: 0, fast_last_date: null, fast_active: null };
+  }
+
+  async function saveStreakRow(row){
+    row.updated_at = new Date().toISOString();
+    await authedFetch('/streaks', {
+      method: 'POST',
+      headers: { 'Prefer': 'resolution=merge-duplicates,return=representation' },
+      body: JSON.stringify(row)
+    });
+  }
+
+  async function init(){
+    const { data } = await auth.getSession();
+    state.authChecked = true;
+    if (!data || !data.session) {
+      state.session = null;
+      render();
+      return;
+    }
+    state.session = data;
+    await loadAllData();
+    render();
+  }
+
+  async function loadAllData(){
+    const [medRows, fastRows, streakRow] = await Promise.all([
+      authedFetch('/meditation_sessions?select=session_date,minutes&order=session_date.desc&limit=8'),
+      authedFetch('/fasting_sessions?select=session_date,goal_hours,actual_hours&order=session_date.desc&limit=8'),
+      loadStreakRow()
+    ]);
+    state.med = {
+      sessions: (medRows || []).map(r => ({ date: r.session_date, minutes: r.minutes })),
+      streak: streakRow.med_streak || 0,
+      lastDate: streakRow.med_last_date
+    };
+    state.fast = {
+      sessions: (fastRows || []).map(r => ({ date: r.session_date, goalHours: r.goal_hours, actualHours: r.actual_hours })),
+      streak: streakRow.fast_streak || 0,
+      lastDate: streakRow.fast_last_date,
+      active: streakRow.fast_active || null
+    };
     if (state.fast.active) tickFastClock();
   }
 
   // ---------- streak logic ----------
-  function bumpStreak(store){
+  function computeBumpedStreak(streak, lastDate){
     const today = todayStr();
-    if (store.lastDate === today) {
-      // already logged today, streak unchanged
-    } else if (store.lastDate && isYesterday(store.lastDate)) {
-      store.streak += 1;
-    } else {
-      store.streak = 1;
-    }
-    store.lastDate = today;
+    if (lastDate === today) return { streak, lastDate };
+    if (lastDate && isYesterday(lastDate)) return { streak: streak + 1, lastDate: today };
+    return { streak: 1, lastDate: today };
   }
 
   // ---------- meditation logic ----------
@@ -618,11 +692,29 @@
 
   async function completeMedSession(){
     pauseMedTimer();
-    state.med.sessions.unshift({ date: todayStr(), minutes: state.medTimer.durationMin });
-    bumpStreak(state.med);
-    await saveData('meditation-data', state.med);
-    state.medTimer.remaining = state.medTimer.durationMin*60;
+    const minutes = state.medTimer.durationMin;
+    const today = todayStr();
+
+    // optimistic local update
+    state.med.sessions.unshift({ date: today, minutes });
+    const bumped = computeBumpedStreak(state.med.streak, state.med.lastDate);
+    state.med.streak = bumped.streak;
+    state.med.lastDate = bumped.lastDate;
+    state.medTimer.remaining = minutes*60;
     render();
+
+    try {
+      await authedFetch('/meditation_sessions', {
+        method: 'POST',
+        body: JSON.stringify({ user_id: state.session.user.id, minutes, goal: state.medGoal, session_date: today })
+      });
+      const row = await loadStreakRow();
+      row.med_streak = bumped.streak;
+      row.med_last_date = bumped.lastDate;
+      await saveStreakRow(row);
+    } catch(e){
+      console.error('failed to save meditation session', e);
+    }
   }
 
   // ---------- fasting logic ----------
@@ -631,7 +723,6 @@
   function tickFastClock(){
     clearInterval(fastClockInterval);
     fastClockInterval = setInterval(()=>{ if (state.tab === 'fasting' || state.tab === 'overview') render(); }, 1000*20);
-    // lighter re-render cadence is fine since we compute elapsed live in render()
   }
 
   function setFastGoal(h){
@@ -648,22 +739,46 @@
   }
 
   async function startFast(){
-    state.fast.active = { startTs: Date.now(), goalHours: state.fastGoal };
-    await saveData('fasting-data', state.fast);
+    const active = { startTs: Date.now(), goalHours: state.fastGoal, goalType: state.fastGoalType };
+    state.fast.active = active;
     tickFastClock();
     render();
+    try {
+      const row = await loadStreakRow();
+      row.fast_active = active;
+      await saveStreakRow(row);
+    } catch(e){
+      console.error('failed to save active fast', e);
+    }
   }
 
   async function endFast(){
     const active = state.fast.active;
     if (!active) return;
     const actualHours = (Date.now() - active.startTs)/3600000;
-    state.fast.sessions.unshift({ date: todayStr(), goalHours: active.goalHours, actualHours });
-    bumpStreak(state.fast);
+    const today = todayStr();
+
+    state.fast.sessions.unshift({ date: today, goalHours: active.goalHours, actualHours });
+    const bumped = computeBumpedStreak(state.fast.streak, state.fast.lastDate);
+    state.fast.streak = bumped.streak;
+    state.fast.lastDate = bumped.lastDate;
     state.fast.active = null;
     clearInterval(fastClockInterval);
-    await saveData('fasting-data', state.fast);
     render();
+
+    try {
+      await authedFetch('/fasting_sessions', {
+        method: 'POST',
+        body: JSON.stringify({ user_id: state.session.user.id, goal_hours: active.goalHours, actual_hours: actualHours, goal_type: active.goalType, session_date: today })
+      });
+      const row = await loadStreakRow();
+      row.fast_streak = bumped.streak;
+      row.fast_last_date = bumped.lastDate;
+      row.fast_active = null;
+      await saveStreakRow(row);
+    } catch(e){
+      console.error('failed to save fasting session', e);
+    }
   }
 
   // ---------- render ----------
@@ -834,7 +949,35 @@
     `;
   }
 
+  function renderSignIn(){
+    const app = document.getElementById('app');
+    app.innerHTML = `
+      <div class="signin-wrap">
+        <div class="brand" style="justify-content:center; margin-bottom: 28px;">
+          <div class="brand-mark">
+            <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="16" cy="16" r="13" fill="var(--meditation)"/>
+              <path d="M16 3a13 13 0 0 0 0 26 10.5 10.5 0 0 1 0-26z" fill="var(--fasting)"/>
+            </svg>
+          </div>
+          <div class="mark">Vigil<span>. a discipline practice</span></div>
+        </div>
+        <p class="lede" style="margin: 0 auto 28px; text-align:center;">Your streaks and history live on your account, not this browser — sign in once and it stays that way until you sign out.</p>
+        <div style="display:flex; justify-content:center;">
+          <button class="btn primary meditation" id="google-signin" ${state.authBusy ? 'disabled' : ''}>
+            ${state.authBusy ? 'Opening Google…' : 'Continue with Google'}
+          </button>
+        </div>
+      </div>
+    `;
+    const btn = document.getElementById('google-signin');
+    if (btn) btn.onclick = signInGoogle;
+  }
+
   function render(){
+    if (!state.authChecked) return;
+    if (!state.session) { renderSignIn(); return; }
+
     const app = document.getElementById('app');
     const tabs = ['overview','meditation','fasting'];
     const labels = { overview: 'Overview', meditation: 'Meditation', fasting: 'Fasting' };
@@ -855,13 +998,17 @@
           </div>
           <div class="mark">Vigil<span>. a discipline practice</span></div>
         </div>
+        <button class="signout-link" id="sign-out">Sign out</button>
       </header>
       <nav class="tabs">
         ${tabs.map(t => `<button class="${state.tab===t?'active':''}" data-tab="${t}">${labels[t]}</button>`).join('')}
       </nav>
       <section class="view">${body}</section>
-      <footer class="foot">kept to this artifact, not a public database · not a substitute for medical or psychological advice</footer>
+      <footer class="foot">saved to your account · not a substitute for medical or psychological advice</footer>
     `;
+
+    const signOutBtn = document.getElementById('sign-out');
+    if (signOutBtn) signOutBtn.onclick = signOut;
 
     // wire events
     app.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { state.tab = b.dataset.tab; render(); });
@@ -885,7 +1032,6 @@
   }
 
   init();
-})();
 </script>
 </body>
 </html>
