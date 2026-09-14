@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vigil — a discipline practice</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='13' fill='%236f95a0'/%3E%3Cpath d='M16 3a13 13 0 0 0 0 26 10.5 10.5 0 0 1 0-26z' fill='%23b08a52'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #15171a;
+    --surface: #1c1f23;
+    --surface-2: #23272c;
+    --border: #33383e;
+    --text: #e7e4dd;
+    --text-muted: #8a9099;
+    --text-faint: #5c6167;
+    --meditation: #6f95a0;
+    --meditation-dim: #3d5158;
+    --fasting: #b08a52;
+    --fasting-dim: #5c4a2f;
+    --gold: #c2ac74;
+    --danger: #a56b5c;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+  .display { font-family: 'Fraunces', serif; }
+
+  #app {
+    max-width: 760px;
+    margin: 0 auto;
+    min-height: 100vh;
+    padding: 0 24px 80px;
+  }
+
+  header.top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 40px 0 28px;
+    position: relative;
+  }
+
+  header.top::after {
+    content: '';
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 1px;
+    background: linear-gradient(90deg, var(--meditation) 0%, var(--border) 35%, var(--border) 65%, var(--fasting) 100%);
+    opacity: 0.6;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .brand-mark {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    position: relative;
+    filter: drop-shadow(0 0 10px rgba(111,149,160,0.35));
+  }
+
+  .brand-mark svg { display: block; width: 100%; height: 100%; }
+
+  header.top .mark {
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    background: linear-gradient(90deg, var(--text) 55%, var(--meditation) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  header.top .mark span {
+    color: var(--text-faint);
+    font-weight: 400;
+    background: none;
+    -webkit-text-fill-color: var(--text-faint);
+    -webkit-background-clip: initial;
+    background-clip: initial;
+  }
+
+  nav.tabs {
+    display: flex;
+    gap: 28px;
+    margin-top: 0;
+  }
+
+  nav.tabs button {
+    background: none;
+    border: none;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 6px 0;
+    border-bottom: 2px solid transparent;
+    transition: color 0.15s ease, border-color 0.15s ease;
+  }
+
+  nav.tabs button:hover { color: var(--text); }
+
+  nav.tabs button.active {
+    color: var(--text);
+    border-bottom-color: var(--gold);
+  }
+
+  section.view { padding-top: 40px; animation: rise 0.35s ease; }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ---------- Overview ---------- */
+
+  .overview-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    margin-bottom: 36px;
+  }
+
+  .stat-block {
+    background: var(--surface);
+    padding: 24px;
+    position: relative;
+  }
+
+  .stat-block::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+
+  .stat-block:first-child::before { background: var(--meditation); }
+  .stat-block:last-child::before { background: var(--fasting); }
+
+  .stat-block .label {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+  }
+
+  .stat-block .value {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 32px;
+    font-weight: 500;
+  }
+
+  .stat-block .value.meditation-color { color: var(--meditation); }
+  .stat-block .value.fasting-color { color: var(--fasting); }
+
+  .stat-block .unit {
+    font-size: 13px;
+    color: var(--text-faint);
+    margin-left: 6px;
+  }
+
+  h2.section-title {
+    font-family: 'Fraunces', serif;
+    font-size: 24px;
+    font-weight: 500;
+    margin: 0 0 18px;
+  }
+
+  p.lede {
+    color: var(--text-muted);
+    font-size: 15px;
+    line-height: 1.6;
+    max-width: 54ch;
+    margin: 0 0 32px;
+  }
+
+  .row-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 0;
+    border-top: 1px solid var(--border);
+    cursor: pointer;
+  }
+
+  .row-link:last-child { border-bottom: 1px solid var(--border); }
+
+  .row-link .name { font-size: 15px; }
+  .row-link .meta { font-size: 13px; color: var(--text-faint); font-family: 'IBM Plex Mono', monospace; }
+
+  /* ---------- Meditation & Fasting shared ---------- */
+
+  .practice-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+
+  .practice-header h2 { margin: 0; }
+
+  .streak-pill {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--gold);
+    border: 1px solid var(--gold);
+    border-radius: 2px;
+    padding: 2px 8px;
+  }
+
+  .panel {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: 32px;
+    margin-bottom: 28px;
+  }
+
+  .timer-display {
+    text-align: center;
+    padding: 20px 0 8px;
+  }
+
+  .timer-time {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 56px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+  }
+
+  .breath-ring-wrap {
+    display: flex;
+    justify-content: center;
+    margin: 20px 0 10px;
+  }
+
+  .breath-ring {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    border: 1.5px solid var(--meditation-dim);
+    position: relative;
+  }
+
+  .breath-ring::before {
+    content: '';
+    position: absolute;
+    inset: 14px;
+    border-radius: 50%;
+    background: var(--meditation-dim);
+    opacity: 0.5;
+  }
+
+  .breath-ring.running::before {
+    animation: breathe 8s ease-in-out infinite;
+  }
+
+  @keyframes breathe {
+    0%   { transform: scale(0.72); opacity: 0.35; }
+    50%  { transform: scale(1);    opacity: 0.65; }
+    100% { transform: scale(0.72); opacity: 0.35; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .breath-ring.running::before { animation: none; opacity: 0.5; }
+  }
+
+  .chip-row {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin: 18px 0 6px;
+  }
+
+  .goal-row {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+  }
+
+  .goal-label {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-faint);
+    margin-bottom: 10px;
+  }
+
+  .goal-note {
+    max-width: 46ch;
+    margin: 14px auto 0;
+    text-align: center;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--text-muted);
+  }
+
+  .goal-note .flag {
+    display: inline-block;
+    margin-left: 6px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.03em;
+    color: var(--fasting);
+    border: 1px solid var(--fasting-dim);
+    padding: 1px 6px;
+    border-radius: 2px;
+    vertical-align: 1px;
+  }
+
+  .divider-hair {
+    border-top: 1px solid var(--border);
+    margin: 22px 0 20px;
+  }
+
+  .chip {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 7px 14px;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+
+  .chip:hover { color: var(--text); }
+  .chip.active.meditation { border-color: var(--meditation); color: var(--meditation); }
+  .chip.active.fasting { border-color: var(--fasting); color: var(--fasting); }
+
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 22px;
+  }
+
+  button.btn {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px;
+    padding: 10px 22px;
+    border-radius: 2px;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    transition: opacity 0.15s ease;
+  }
+
+  button.btn:hover { opacity: 0.8; }
+
+  button.btn.primary.meditation { background: var(--meditation); border-color: var(--meditation); color: #10181a; font-weight: 500; }
+  button.btn.primary.fasting { background: var(--fasting); border-color: var(--fasting); color: #1a1410; font-weight: 500; }
+  button.btn.ghost { color: var(--text-muted); }
+
+  .fast-progress {
+    height: 6px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    margin: 22px 0 8px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .fast-progress .fill {
+    height: 100%;
+    background: var(--fasting);
+    transition: width 1s linear;
+  }
+
+  .progress-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-faint);
+    font-family: 'IBM Plex Mono', monospace;
+    margin-bottom: 20px;
+  }
+
+  .goal-select {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 22px;
+  }
+
+  .custom-input {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    padding: 7px 10px;
+    border-radius: 2px;
+    width: 70px;
+    text-align: center;
+  }
+
+  .edu-block {
+    border-top: 1px solid var(--border);
+    padding: 20px 0;
+  }
+
+  .edu-block:last-child { padding-bottom: 0; }
+
+  .edu-block h3 {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    margin: 0 0 8px;
+  }
+
+  .edu-block p {
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--text-muted);
+    margin: 0;
+  }
+
+  .note {
+    font-size: 12.5px;
+    color: var(--text-faint);
+    line-height: 1.6;
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+  }
+
+  .history-list {
+    margin-top: 4px;
+  }
+
+  .history-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+
+  .history-row .d { color: var(--text-muted); }
+  .history-row .v { font-family: 'IBM Plex Mono', monospace; color: var(--text); }
+
+  .empty {
+    color: var(--text-faint);
+    font-size: 13px;
+    padding: 14px 0;
+  }
+
+  footer.foot {
+    text-align: center;
+    color: var(--text-faint);
+    font-size: 12px;
+    margin-top: 50px;
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+(function(){
+
+  // ---------- storage helpers ----------
+  async function loadData(key, fallback){
+    try {
+      const res = await window.storage.get(key, false);
+      return res ? JSON.parse(res.value) : fallback;
+    } catch(e){
+      return fallback;
+    }
+  }
+  async function saveData(key, value){
+    try {
+      await window.storage.set(key, JSON.stringify(value), false);
+    } catch(e){
+      console.error('storage failed', e);
+    }
+  }
+
+  function todayStr(){
+    return new Date().toISOString().slice(0,10);
+  }
+  function isYesterday(dateStr){
+    const d = new Date(dateStr + 'T00:00:00');
+    const y = new Date();
+    y.setDate(y.getDate()-1);
+    return d.toDateString() === y.toDateString();
+  }
+  function fmtClock(totalSeconds){
+    const m = Math.floor(totalSeconds/60).toString().padStart(2,'0');
+    const s = Math.floor(totalSeconds%60).toString().padStart(2,'0');
+    return m + ':' + s;
+  }
+  function fmtHours(h){
+    const hrs = Math.floor(h);
+    const mins = Math.round((h-hrs)*60);
+    return hrs + 'h ' + mins.toString().padStart(2,'0') + 'm';
+  }
+  function fmtDate(iso){
+    const d = new Date(iso + 'T00:00:00');
+    return d.toLocaleDateString(undefined, {month:'short', day:'numeric'});
+  }
+
+  const DEFAULT_MED = { sessions: [], streak: 0, lastDate: null };
+  const DEFAULT_FAST = { sessions: [], streak: 0, lastDate: null, active: null };
+
+  const MED_GOALS = {
+    habit:  { label: 'Build the habit', duration: 5,  note: 'Consistency beats duration here — a large study of 280,000 real-world sessions found practice frequency mattered more than length, and one trial found short 5-minute sits outperformed 20-minute ones for beginners.' },
+    calm:   { label: 'Stress reduction', duration: 10, note: '8–12 minutes is the range most studies point to as the minimum effective dose for measurable stress reduction.' },
+    focus:  { label: 'Focus & attention', duration: 20, note: 'Attention gains have shown up with sessions around 20 minutes held for a few consecutive days — a shorter runway than stress work, but a longer per-session dose.' },
+    deep:   { label: 'Deep practice', duration: 30, note: 'Established clinical and meditative traditions run long — MBSR uses 40–45 minutes, TM uses 20 minutes twice daily. This tier mainly rewards people past the habit-building stage.' }
+  };
+
+  const FAST_GOALS = {
+    habit:      { label: 'General health', hours: 16, note: '16:8 is the most-studied protocol here, with the best real-world adherence of the options on this page.', flag: null },
+    weight:     { label: 'Weight loss', hours: 24, note: 'In head-to-head research, alternate-day (24h) fasting produced a clearer weight and BMI effect than 16:8 or 20:4 — but it had the lowest adherence of the three in that same trial.', flag: 'harder to sustain' },
+    discipline: { label: 'Discipline challenge', hours: 20, note: 'Longer single fasts sit in the same metabolic family as alternate-day fasting without clearly outperforming it. Treat this tier as a personal challenge, not a proven upgrade.', flag: 'advanced' }
+  };
+
+  let state = {
+    tab: 'overview',
+    med: DEFAULT_MED,
+    fast: DEFAULT_FAST,
+    medTimer: { durationMin: 10, remaining: 10*60, running: false, intervalId: null },
+    medGoal: null,
+    fastGoal: 16,
+    fastGoalType: null
+  };
+
+  async function init(){
+    state.med = await loadData('meditation-data', DEFAULT_MED);
+    state.fast = await loadData('fasting-data', DEFAULT_FAST);
+    state.medTimer.remaining = state.medTimer.durationMin*60;
+    render();
+    if (state.fast.active) tickFastClock();
+  }
+
+  // ---------- streak logic ----------
+  function bumpStreak(store){
+    const today = todayStr();
+    if (store.lastDate === today) {
+      // already logged today, streak unchanged
+    } else if (store.lastDate && isYesterday(store.lastDate)) {
+      store.streak += 1;
+    } else {
+      store.streak = 1;
+    }
+    store.lastDate = today;
+  }
+
+  // ---------- meditation logic ----------
+  function setMedDuration(min){
+    if (state.medTimer.running) return;
+    state.medTimer.durationMin = min;
+    state.medTimer.remaining = min*60;
+    render();
+  }
+
+  function setMedGoal(key){
+    if (state.medTimer.running) return;
+    state.medGoal = key;
+    const g = MED_GOALS[key];
+    state.medTimer.durationMin = g.duration;
+    state.medTimer.remaining = g.duration*60;
+    render();
+  }
+
+  function startMedTimer(){
+    if (state.medTimer.running) return;
+    state.medTimer.running = true;
+    state.medTimer.intervalId = setInterval(()=>{
+      state.medTimer.remaining -= 1;
+      if (state.medTimer.remaining <= 0) {
+        completeMedSession();
+      } else {
+        render();
+      }
+    }, 1000);
+    render();
+  }
+
+  function pauseMedTimer(){
+    state.medTimer.running = false;
+    clearInterval(state.medTimer.intervalId);
+    render();
+  }
+
+  function resetMedTimer(){
+    pauseMedTimer();
+    state.medTimer.remaining = state.medTimer.durationMin*60;
+    render();
+  }
+
+  async function completeMedSession(){
+    pauseMedTimer();
+    state.med.sessions.unshift({ date: todayStr(), minutes: state.medTimer.durationMin });
+    bumpStreak(state.med);
+    await saveData('meditation-data', state.med);
+    state.medTimer.remaining = state.medTimer.durationMin*60;
+    render();
+  }
+
+  // ---------- fasting logic ----------
+  let fastClockInterval = null;
+
+  function tickFastClock(){
+    clearInterval(fastClockInterval);
+    fastClockInterval = setInterval(()=>{ if (state.tab === 'fasting' || state.tab === 'overview') render(); }, 1000*20);
+    // lighter re-render cadence is fine since we compute elapsed live in render()
+  }
+
+  function setFastGoal(h){
+    if (state.fast.active) return;
+    state.fastGoal = h;
+    render();
+  }
+
+  function setFastGoalType(key){
+    if (state.fast.active) return;
+    state.fastGoalType = key;
+    state.fastGoal = FAST_GOALS[key].hours;
+    render();
+  }
+
+  async function startFast(){
+    state.fast.active = { startTs: Date.now(), goalHours: state.fastGoal };
+    await saveData('fasting-data', state.fast);
+    tickFastClock();
+    render();
+  }
+
+  async function endFast(){
+    const active = state.fast.active;
+    if (!active) return;
+    const actualHours = (Date.now() - active.startTs)/3600000;
+    state.fast.sessions.unshift({ date: todayStr(), goalHours: active.goalHours, actualHours });
+    bumpStreak(state.fast);
+    state.fast.active = null;
+    clearInterval(fastClockInterval);
+    await saveData('fasting-data', state.fast);
+    render();
+  }
+
+  // ---------- render ----------
+  function el(html){ const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content; }
+
+  function renderOverview(){
+    const medStreak = state.med.streak;
+    const fastStreak = state.fast.streak;
+    return `
+      <p class="lede">A quiet place to keep two commitments: sitting still on purpose, and going without on purpose. Nothing here is gamified — just a record of whether you showed up.</p>
+      <div class="overview-grid">
+        <div class="stat-block">
+          <div class="label">Meditation streak</div>
+          <div class="value meditation-color">${medStreak}<span class="unit">day${medStreak===1?'':'s'}</span></div>
+        </div>
+        <div class="stat-block">
+          <div class="label">Fasting streak</div>
+          <div class="value fasting-color">${fastStreak}<span class="unit">day${fastStreak===1?'':'s'}</span></div>
+        </div>
+      </div>
+      <div class="row-link" data-nav="meditation">
+        <span class="name">Sit for a session</span>
+        <span class="meta">${state.med.sessions.length} logged</span>
+      </div>
+      <div class="row-link" data-nav="fasting">
+        <span class="name">${state.fast.active ? 'View active fast' : 'Start a fast'}</span>
+        <span class="meta">${state.fast.sessions.length} completed</span>
+      </div>
+    `;
+  }
+
+  function renderMeditation(){
+    const t = state.medTimer;
+    const remaining = t.remaining;
+    const durations = [5,10,15,20];
+    return `
+      <div class="practice-header">
+        <h2 class="section-title" style="color: var(--meditation)">Meditation</h2>
+        ${state.med.streak > 0 ? `<span class="streak-pill">${state.med.streak}-day streak</span>` : ''}
+      </div>
+      <p class="lede">Attention control and emotion regulation are the two things sustained practice reliably moves — measured in randomized trials, not just self-report. Pick a goal below and it'll suggest a length; you can still override it.</p>
+
+      <div class="panel">
+        <div class="breath-ring-wrap">
+          <div class="breath-ring ${t.running ? 'running' : ''}"></div>
+        </div>
+        <div class="timer-display">
+          <div class="timer-time mono">${fmtClock(remaining)}</div>
+        </div>
+
+        <div class="goal-label">What are you sitting for?</div>
+        <div class="goal-row">
+          ${Object.keys(MED_GOALS).map(k => `<button class="chip ${k===state.medGoal?'active meditation':''}" data-med-goal="${k}">${MED_GOALS[k].label}</button>`).join('')}
+        </div>
+        ${state.medGoal ? `<p class="goal-note">${MED_GOALS[state.medGoal].note}</p>` : ''}
+
+        <div class="divider-hair"></div>
+
+        <div class="chip-row">
+          ${durations.map(d => `<button class="chip ${d===t.durationMin?'active meditation':''}" data-med-duration="${d}">${d} min</button>`).join('')}
+        </div>
+        <div class="btn-row">
+          ${!t.running
+            ? `<button class="btn primary meditation" data-action="med-start">${remaining < t.durationMin*60 ? 'Resume' : 'Begin sitting'}</button>`
+            : `<button class="btn" data-action="med-pause">Pause</button>`}
+          <button class="btn ghost" data-action="med-reset">Reset</button>
+        </div>
+      </div>
+
+      <h2 class="section-title" style="font-size:18px; margin-top:8px;">Why this, specifically</h2>
+      <div class="panel" style="padding: 8px 32px;">
+        <div class="edu-block">
+          <h3>It changes reaction under load, not just mood</h3>
+          <p>Controlled trials of an eight-week practice show reduced anxiety and rumination alongside faster, more accurate responses on cognitive-control tasks — the calm shows up in performance, not only in how people describe feeling.</p>
+        </div>
+        <div class="edu-block">
+          <h3>The transfer has a proposed mechanism</h3>
+          <p>Reviews of the decision-making research point to three overlapping levers: better cognitive control, better emotion regulation, and more empathic accuracy. That combination is what's thought to carry the practice into decisions that have nothing to do with sitting.</p>
+        </div>
+        <div class="edu-block">
+          <h3>It's not universal or instant</h3>
+          <p>Short trials (a few weeks) have improved perceived stress without measurably changing risk tolerance, patience, or ingrained habits like sleep or smoking. Dose and duration matter — this is a practice with a build time, not a switch.</p>
+        </div>
+      </div>
+
+      <h2 class="section-title" style="font-size:18px;">Log</h2>
+      <div class="panel" style="padding: 8px 32px 24px;">
+        <div class="history-list">
+          ${state.med.sessions.length === 0
+            ? `<div class="empty">No sessions yet. The first one starts the count.</div>`
+            : state.med.sessions.slice(0,8).map(s => `<div class="history-row"><span class="d">${fmtDate(s.date)}</span><span class="v">${s.minutes} min</span></div>`).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderFasting(){
+    const active = state.fast.active;
+    const goals = [16,18,20,24];
+    let elapsedH = 0, pct = 0;
+    if (active) {
+      elapsedH = (Date.now() - active.startTs)/3600000;
+      pct = Math.min(100, (elapsedH/active.goalHours)*100);
+    }
+    return `
+      <div class="practice-header">
+        <h2 class="section-title" style="color: var(--fasting)">Fasting</h2>
+        ${state.fast.streak > 0 ? `<span class="streak-pill">${state.fast.streak}-day streak</span>` : ''}
+      </div>
+      <p class="lede">Time-restricted eating is the best-studied version of this. The clearest evidence is metabolic, not psychological — treat the discipline benefit as a hypothesis you're testing on yourself, not a guarantee. Pick a goal and it'll suggest a window.</p>
+
+      <div class="panel">
+        ${active ? `
+          <div class="timer-display">
+            <div class="timer-time mono">${fmtHours(elapsedH)}</div>
+          </div>
+          <div class="fast-progress"><div class="fill" style="width:${pct}%"></div></div>
+          <div class="progress-labels"><span>0h</span><span>goal ${active.goalHours}h</span></div>
+          <div class="btn-row">
+            <button class="btn primary fasting" data-action="fast-end">End fast</button>
+          </div>
+        ` : `
+          <div class="timer-display">
+            <div class="timer-time mono" style="color:var(--text-faint); font-size:32px;">no fast running</div>
+          </div>
+
+          <div class="goal-label">What's the goal?</div>
+          <div class="goal-row">
+            ${Object.keys(FAST_GOALS).map(k => `<button class="chip ${k===state.fastGoalType?'active fasting':''}" data-fast-goal-type="${k}">${FAST_GOALS[k].label}</button>`).join('')}
+          </div>
+          ${state.fastGoalType ? `<p class="goal-note">${FAST_GOALS[state.fastGoalType].note}${FAST_GOALS[state.fastGoalType].flag ? `<span class="flag">${FAST_GOALS[state.fastGoalType].flag}</span>` : ''}</p>` : ''}
+
+          <div class="divider-hair"></div>
+
+          <div class="goal-select">
+            ${goals.map(g => `<button class="chip ${g===state.fastGoal?'active fasting':''}" data-fast-goal="${g}">${g}h</button>`).join('')}
+          </div>
+          <div class="btn-row">
+            <button class="btn primary fasting" data-action="fast-start">Start fast — ${state.fastGoal}h goal</button>
+          </div>
+        `}
+      </div>
+
+      <h2 class="section-title" style="font-size:18px; margin-top:8px;">What the research actually says</h2>
+      <div class="panel" style="padding: 8px 32px;">
+        <div class="edu-block">
+          <h3>Metabolic effects are the solid ground</h3>
+          <p>Time-restricted windows like 16:8 have the most consistent support for markers like insulin sensitivity and blood sugar regulation. That's a real, replicated effect — separate from any claim about willpower or focus.</p>
+        </div>
+        <div class="edu-block">
+          <h3>The discipline effect is plausible, not proven</h3>
+          <p>No controlled study isolates "fasting practice" and shows it builds transferable self-control better than any other sustained discipline would. Treat gains in focus or resolve as a personal data point, not an established finding.</p>
+        </div>
+        <div class="edu-block">
+          <h3>It isn't for everyone</h3>
+          <p>Fasting protocols aren't appropriate for pregnancy, a history of disordered eating, insulin-dependent diabetes, or several other conditions. This tool doesn't give medical advice — check with a doctor before adopting a routine, not after.</p>
+        </div>
+      </div>
+
+      <h2 class="section-title" style="font-size:18px;">Log</h2>
+      <div class="panel" style="padding: 8px 32px 24px;">
+        <div class="history-list">
+          ${state.fast.sessions.length === 0
+            ? `<div class="empty">No completed fasts yet.</div>`
+            : state.fast.sessions.slice(0,8).map(s => `<div class="history-row"><span class="d">${fmtDate(s.date)}</span><span class="v">${fmtHours(s.actualHours)} / ${s.goalHours}h goal</span></div>`).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  function render(){
+    const app = document.getElementById('app');
+    const tabs = ['overview','meditation','fasting'];
+    const labels = { overview: 'Overview', meditation: 'Meditation', fasting: 'Fasting' };
+
+    let body = '';
+    if (state.tab === 'overview') body = renderOverview();
+    else if (state.tab === 'meditation') body = renderMeditation();
+    else body = renderFasting();
+
+    app.innerHTML = `
+      <header class="top">
+        <div class="brand">
+          <div class="brand-mark">
+            <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="16" cy="16" r="13" fill="var(--meditation)"/>
+              <path d="M16 3a13 13 0 0 0 0 26 10.5 10.5 0 0 1 0-26z" fill="var(--fasting)"/>
+            </svg>
+          </div>
+          <div class="mark">Vigil<span>. a discipline practice</span></div>
+        </div>
+      </header>
+      <nav class="tabs">
+        ${tabs.map(t => `<button class="${state.tab===t?'active':''}" data-tab="${t}">${labels[t]}</button>`).join('')}
+      </nav>
+      <section class="view">${body}</section>
+      <footer class="foot">kept to this artifact, not a public database · not a substitute for medical or psychological advice</footer>
+    `;
+
+    // wire events
+    app.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { state.tab = b.dataset.tab; render(); });
+    app.querySelectorAll('[data-nav]').forEach(b => b.onclick = () => { state.tab = b.dataset.nav; render(); });
+    app.querySelectorAll('[data-med-duration]').forEach(b => b.onclick = () => setMedDuration(parseInt(b.dataset.medDuration)));
+    app.querySelectorAll('[data-med-goal]').forEach(b => b.onclick = () => setMedGoal(b.dataset.medGoal));
+    app.querySelectorAll('[data-fast-goal]').forEach(b => b.onclick = () => setFastGoal(parseInt(b.dataset.fastGoal)));
+    app.querySelectorAll('[data-fast-goal-type]').forEach(b => b.onclick = () => setFastGoalType(b.dataset.fastGoalType));
+
+    const medStart = app.querySelector('[data-action="med-start"]');
+    if (medStart) medStart.onclick = startMedTimer;
+    const medPause = app.querySelector('[data-action="med-pause"]');
+    if (medPause) medPause.onclick = pauseMedTimer;
+    const medReset = app.querySelector('[data-action="med-reset"]');
+    if (medReset) medReset.onclick = resetMedTimer;
+
+    const fastStart = app.querySelector('[data-action="fast-start"]');
+    if (fastStart) fastStart.onclick = startFast;
+    const fastEnd = app.querySelector('[data-action="fast-end"]');
+    if (fastEnd) fastEnd.onclick = endFast;
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
