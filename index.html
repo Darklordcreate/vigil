@@ -495,6 +495,16 @@
     text-align: center;
     animation: rise 0.35s ease;
   }
+
+  .error-banner {
+    background: rgba(165,107,92,0.12);
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    font-size: 13px;
+    padding: 12px 16px;
+    border-radius: 2px;
+    margin-bottom: 24px;
+  }
 </style>
 </head>
 <body>
@@ -508,9 +518,10 @@ const DATA_API_URL = 'https://ep-divine-bonus-ay7049xk.apirest.c-5.us-east-2.aws
 const auth = createAuthClient(AUTH_URL);
 
 async function authedFetch(path, options = {}){
-  const { data: tokenData, error: tokenError } = await auth.token();
-  if (tokenError || !tokenData) throw new Error('not signed in');
-  const jwt = tokenData.token || tokenData;
+  const { data: sessionData, error: sessionError } = await auth.getSession();
+  if (sessionError || !sessionData || !sessionData.session) throw new Error('not signed in');
+  const jwt = sessionData.session.access_token;
+  if (!jwt) throw new Error('no access token on session');
   const headers = Object.assign({
     'Authorization': 'Bearer ' + jwt,
     'Content-Type': 'application/json'
@@ -569,6 +580,7 @@ async function authedFetch(path, options = {}){
     session: null,
     authChecked: false,
     authBusy: false,
+    loadError: null,
     med: DEFAULT_MED,
     fast: DEFAULT_FAST,
     medTimer: { durationMin: 10, remaining: 10*60, running: false, intervalId: null },
@@ -615,7 +627,13 @@ async function authedFetch(path, options = {}){
       return;
     }
     state.session = data;
-    await loadAllData();
+    try {
+      await loadAllData();
+      state.loadError = null;
+    } catch(e){
+      console.error('failed to load data', e);
+      state.loadError = e.message || 'Could not load your data.';
+    }
     render();
   }
 
@@ -1003,7 +1021,10 @@ async function authedFetch(path, options = {}){
       <nav class="tabs">
         ${tabs.map(t => `<button class="${state.tab===t?'active':''}" data-tab="${t}">${labels[t]}</button>`).join('')}
       </nav>
-      <section class="view">${body}</section>
+      <section class="view">
+        ${state.loadError ? `<div class="error-banner">Couldn't load your data: ${state.loadError}</div>` : ''}
+        ${body}
+      </section>
       <footer class="foot">saved to your account · not a substitute for medical or psychological advice</footer>
     `;
 
