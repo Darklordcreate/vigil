@@ -517,11 +517,34 @@ const AUTH_URL = 'https://ep-divine-bonus-ay7049xk.neonauth.c-5.us-east-2.aws.ne
 const DATA_API_URL = 'https://ep-divine-bonus-ay7049xk.apirest.c-5.us-east-2.aws.neon.tech/neondb/rest/v1';
 const auth = createAuthClient(AUTH_URL);
 
+function looksLikeJWT(s){
+  return typeof s === 'string' && s.split('.').length === 3;
+}
+
+async function resolveJWT(){
+  // Try the session object first (several Neon docs disagree on the exact field name)
+  const { data: sessionData } = await auth.getSession();
+  const candidates = [
+    sessionData && sessionData.session && sessionData.session.token,
+    sessionData && sessionData.session && sessionData.session.access_token
+  ];
+  for (const c of candidates) if (looksLikeJWT(c)) return c;
+
+  // Fall back to the dedicated /token endpoint
+  if (auth.token) {
+    const { data: tokenData } = await auth.token();
+    const tCandidates = [
+      tokenData && tokenData.token,
+      typeof tokenData === 'string' ? tokenData : null
+    ];
+    for (const c of tCandidates) if (looksLikeJWT(c)) return c;
+  }
+
+  throw new Error('could not find a JWT on the session (checked session.token, session.access_token, and /token)');
+}
+
 async function authedFetch(path, options = {}){
-  const { data: sessionData, error: sessionError } = await auth.getSession();
-  if (sessionError || !sessionData || !sessionData.session) throw new Error('not signed in');
-  const jwt = sessionData.session.access_token;
-  if (!jwt) throw new Error('no access token on session');
+  const jwt = await resolveJWT();
   const headers = Object.assign({
     'Authorization': 'Bearer ' + jwt,
     'Content-Type': 'application/json'
